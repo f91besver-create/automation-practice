@@ -1,6 +1,6 @@
 """
 organize_desktop.py
-デスクトップのファイルを拡張子ごとにフォルダへ自動整理するスクリプト
+指定フォルダ（デフォルト: デスクトップ）のファイルを拡張子ごとにフォルダへ自動整理するスクリプト
 """
 
 import os
@@ -9,8 +9,8 @@ from pathlib import Path
 
 # ===== 設定 =====
 
-# 整理対象のデスクトップパス（自動取得）
-DESKTOP = Path.home() / "Desktop"
+# デフォルトの整理対象パス（引数未指定時に使用）
+DEFAULT_TARGET = Path.home() / "Desktop"
 
 # 拡張子 → フォルダ名のマッピング
 EXTENSION_MAP = {
@@ -76,26 +76,31 @@ OTHER_FOLDER = "その他"
 
 # ===== メイン処理 =====
 
-def organize_desktop(dry_run: bool = False) -> None:
+def organize_desktop(target: Path, dry_run: bool = False) -> None:
     """
-    デスクトップのファイルを拡張子ごとにフォルダへ移動する。
+    指定フォルダのファイルを拡張子ごとにフォルダへ移動する。
 
     Args:
+        target:  整理対象のフォルダパス
         dry_run: True にすると実際には移動せず、移動予定の内容だけ表示する
     """
 
-    if not DESKTOP.exists():
-        print(f"デスクトップが見つかりません: {DESKTOP}")
+    if not target.exists():
+        print(f"フォルダが見つかりません: {target}")
+        return
+
+    if not target.is_dir():
+        print(f"フォルダではありません: {target}")
         return
 
     mode_label = "[DRY RUN] " if dry_run else ""
-    print(f"{mode_label}整理対象: {DESKTOP}\n")
+    print(f"{mode_label}整理対象: {target}\n")
 
     moved = 0       # 移動したファイル数
     skipped = 0     # スキップしたファイル数
 
-    # デスクトップ直下のアイテムを走査
-    for item in sorted(DESKTOP.iterdir()):
+    # 対象フォルダ直下のアイテムを走査
+    for item in sorted(target.iterdir()):
         # フォルダはスキップ（整理済みフォルダを再帰処理しない）
         if item.is_dir():
             continue
@@ -109,7 +114,7 @@ def organize_desktop(dry_run: bool = False) -> None:
         # 移動先フォルダを決定（マッピングにない場合は「その他」）
         ext = item.suffix.lower()
         folder_name = EXTENSION_MAP.get(ext, OTHER_FOLDER)
-        dest_dir = DESKTOP / folder_name
+        dest_dir = target / folder_name
 
         # 移動先に同名ファイルが存在する場合はリネームして衝突を回避
         dest_file = dest_dir / item.name
@@ -143,7 +148,13 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="デスクトップのファイルを拡張子ごとにフォルダ整理します。"
+        description="指定フォルダのファイルを拡張子ごとにフォルダ整理します。"
+    )
+    parser.add_argument(
+        "path",
+        nargs="?",
+        default=None,
+        help="整理対象のフォルダパス（省略時はデスクトップ）",
     )
     parser.add_argument(
         "--dry-run",
@@ -152,4 +163,5 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    organize_desktop(dry_run=args.dry_run)
+    target = Path(args.path) if args.path else DEFAULT_TARGET
+    organize_desktop(target=target, dry_run=args.dry_run)
